@@ -10,6 +10,15 @@ import static com.github.franckyi.guapi.api.GuapiHelper.*;
 public class TextEntryModel extends ValueEntryModel<MutableComponent> {
     private Runnable onApply;
     private boolean deletable = true;
+    private boolean legacyColorCodes;
+
+    public boolean usesLegacyColorCodes() {
+        return legacyColorCodes;
+    }
+
+    public void setLegacyColorCodes(boolean legacyColorCodes) {
+        this.legacyColorCodes = legacyColorCodes;
+    }
 
     public TextEntryModel(CategoryModel category, MutableComponent label, MutableComponent value, Consumer<MutableComponent> action) {
         super(category, label, value == null ? text() : value, action);

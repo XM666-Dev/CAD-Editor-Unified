@@ -125,12 +125,41 @@ public class TextEntryController extends ValueEntryController<TextEntryModel, Te
         int i = view.getTextField().getCursorPosition();
         int j = view.getTextField().getHighlightPosition();
         if (i == j) return;
+        if (model.usesLegacyColorCodes()) {
+            int start = Math.min(i, j);
+            int end = Math.max(i, j);
+            LegacyColorCodes.Edit edit = LegacyColorCodes.recolor(view.getTextField().getText(), start, end, color);
+            isResettingModel = true;
+            try {
+                // Clear component colors in the selection as well as legacy color codes.
+                resizeOtherColorFormattings(new ColorFormatting(start, end, null), false);
+                for (Formatting existing : formattings) {
+                    int oldStart = existing.getStart();
+                    int oldEnd = existing.getEnd();
+                    existing.setStart(edit.mapPosition(oldStart));
+                    existing.setEnd(edit.mapPosition(oldEnd));
+                }
+                formattings.removeIf(formatting -> formatting.getStart() >= formatting.getEnd());
+                view.getTextField().setText(edit.text());
+                view.getTextField().setCursorPosition(i < j ? edit.selectionStart() : edit.selectionEnd());
+                view.getTextField().setHighlightPosition(i < j ? edit.selectionEnd() : edit.selectionStart());
+            } finally {
+                isResettingModel = false;
+            }
+            updateModel();
+            return;
+        }
         ColorFormatting formatting = new ColorFormatting(Math.min(i, j), Math.max(i, j), color);
         if (formattings.contains(formatting)) {
             return;
         }
         mergeIdenticalFormattings(ColorFormatting.class, other -> other.getColor().equals(color), formatting);
         resizeOtherColorFormattings(formatting, true);
+    }
+
+    @Override
+    public boolean supportsCustomColorPicker() {
+        return !model.usesLegacyColorCodes();
     }
 
     @Override

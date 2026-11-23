@@ -26,6 +26,8 @@ public class ItemDisplayCategoryModel extends ItemEditorCategoryModel {
     protected void setupEntries() {
         itemNameEntry = new TextEntryModel(this, ModTexts.ITEM_NAME, getItemNameOverride(), this::setItemNameOverride);
         customNameEntry = new TextEntryModel(this, ModTexts.CUSTOM_NAME, getCustomName(), this::setCustomName);
+        itemNameEntry.setLegacyColorCodes(true);
+        customNameEntry.setLegacyColorCodes(true);
         getEntries().add(itemNameEntry);
         getEntries().add(customNameEntry);
         ItemLore lore = getStack().get(DataComponents.LORE);
@@ -54,6 +56,7 @@ public class ItemDisplayCategoryModel extends ItemEditorCategoryModel {
 
     private EntryModel createLoreEntry(MutableComponent value) {
         TextEntryModel entry = new TextEntryModel(this, null, value, lore -> {});
+        entry.setLegacyColorCodes(true);
         entry.listIndexProperty().addListener(index -> entry.setLabel(ModTexts.lore(index + 1)));
         return entry;
     }
