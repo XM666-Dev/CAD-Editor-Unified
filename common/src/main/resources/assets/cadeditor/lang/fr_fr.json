@@ -71,6 +71,7 @@
   "cadeditor.gui.attribute": "Attribut",
   "cadeditor.gui.attribute_modifiers": "Modificateurs d'attributs",
   "cadeditor.gui.attribute_name": "Nom de l'attribut",
+  "cadeditor.gui.use_attribute_base_id": "Utiliser l'ID de modificateur de base de l'attribut",
   "cadeditor.gui.banner": "Banner",
   "cadeditor.gui.banner_base_color": "Base Color",
   "cadeditor.gui.banner_layer": "Pattern Layer (pattern|color)",

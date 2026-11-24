@@ -74,6 +74,7 @@
   "cadeditor.gui.attribute": "属性",
   "cadeditor.gui.attribute_modifiers": "属性修饰",
   "cadeditor.gui.attribute_name": "属性 ID",
+  "cadeditor.gui.use_attribute_base_id": "使用属性的基础修饰 ID",
   "cadeditor.gui.banner": "旗帜",
   "cadeditor.gui.banner_base_color": "底色",
   "cadeditor.gui.banner_layer": "图层（图案|颜色）",

@@ -70,6 +70,7 @@
   "cadeditor.gui.attribute": "атрибут",
   "cadeditor.gui.attribute_modifiers": "Модификаторы атрибутов",
   "cadeditor.gui.attribute_name": "Имя атрибута",
+  "cadeditor.gui.use_attribute_base_id": "Использовать базовый ID модификатора атрибута",
   "cadeditor.gui.banner": "Banner",
   "cadeditor.gui.banner_base_color": "Base Color",
   "cadeditor.gui.banner_layer": "Pattern Layer (pattern|color)",

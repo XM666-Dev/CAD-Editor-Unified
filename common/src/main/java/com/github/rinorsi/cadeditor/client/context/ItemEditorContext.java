@@ -17,6 +17,7 @@ import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
@@ -254,17 +255,17 @@ public class ItemEditorContext extends EditorContext<ItemEditorContext> {
         if (attributeTag instanceof CompoundTag attributeCompound) {
             ListTag modifiers = attributeCompound.getList("modifiers", Tag.TAG_COMPOUND);
             if (!modifiers.isEmpty()) {
-                Set<UUID> usedIds = new HashSet<>();
+                Set<String> usedIds = new HashSet<>();
                 for (Tag entryTag : modifiers) {
                     if (entryTag instanceof CompoundTag modifier) {
-                        UUID id = readModifierUUID(modifier);
+                        String id = readModifierId(modifier);
                         if (id != null && !usedIds.add(id)) {
                             id = null;
                         }
                         if (id == null) {
                             id = generateModifierUUID(modifier, usedIds);
                         }
-                        modifier.putString("id", id.toString());
+                        modifier.putString("id", id);
                     }
                 }
             }
@@ -272,13 +273,13 @@ public class ItemEditorContext extends EditorContext<ItemEditorContext> {
         return normalized;
     }
 
-    private static UUID generateModifierUUID(CompoundTag modifier, Set<UUID> usedIds) {
+    private static String generateModifierUUID(CompoundTag modifier, Set<String> usedIds) {
         String seed = buildModifierSeed(modifier);
         int salt = 0;
         while (true) {
-            UUID uuid = UUID.nameUUIDFromBytes((seed + "#" + salt).getBytes(StandardCharsets.UTF_8));
-            if (usedIds.add(uuid)) {
-                return uuid;
+            String id = UUID.nameUUIDFromBytes((seed + "#" + salt).getBytes(StandardCharsets.UTF_8)).toString();
+            if (usedIds.add(id)) {
+                return id;
             }
             salt++;
         }
@@ -292,16 +293,23 @@ public class ItemEditorContext extends EditorContext<ItemEditorContext> {
         return copy.toString();
     }
 
-    private static UUID readModifierUUID(CompoundTag modifier) {
+    private static String readModifierId(CompoundTag modifier) {
+        if (modifier.contains("id", Tag.TAG_STRING)) {
+            ResourceLocation id = ResourceLocation.tryParse(modifier.getString("id"));
+            if (id != null) {
+                return id.toString();
+            }
+        }
         UUID id = parseUuidFromTag(modifier, "id");
         if (id != null) {
-            return id;
+            return id.toString();
         }
         id = parseUuidFromTag(modifier, "uuid");
         if (id != null) {
-            return id;
+            return id.toString();
         }
-        return parseUuidFromTag(modifier, "UUID");
+        id = parseUuidFromTag(modifier, "UUID");
+        return id == null ? null : id.toString();
     }
 
     private static UUID parseUuidFromTag(CompoundTag modifier, String key) {

@@ -16,6 +16,7 @@ import static com.github.franckyi.guapi.api.GuapiHelper.*;
 public class AttributeModifierEntryView extends EntryView {
     private TextField attributeNameField;
     private TexturedButton attributeListButton;
+    private TexturedButton baseIdButton;
     private EnumButton<AttributeModifierEntryModel.Slot> slotButton;
     private EnumButton<AttributeModifierEntryModel.Operation> operationButton;
     private TextField amountField;
@@ -40,6 +41,8 @@ public class AttributeModifierEntryView extends EntryView {
                         .placeholder(ModTexts.ATTRIBUTE_NAME), 1);
                 top.add(attributeListButton = texturedButton(ModTextures.SEARCH, 16, 16, false)
                         .tooltip(ModTexts.choose(ModTexts.ATTRIBUTE)));
+                top.add(baseIdButton = texturedButton(ModTextures.BASE, 16, 16, false)
+                        .tooltip(ModTexts.USE_ATTRIBUTE_BASE_ID));
                 top.add(attributePreviewLabel = label().prefHeight(16).visible(false));
                 top.align(CENTER).spacing(2);
             }));
@@ -63,6 +66,10 @@ public class AttributeModifierEntryView extends EntryView {
 
     public TexturedButton getAttributeListButton() {
         return attributeListButton;
+    }
+
+    public TexturedButton getBaseIdButton() {
+        return baseIdButton;
     }
 
     public EnumButton<AttributeModifierEntryModel.Slot> getSlotButton() {

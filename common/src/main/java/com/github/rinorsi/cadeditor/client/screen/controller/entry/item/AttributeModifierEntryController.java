@@ -1,5 +1,6 @@
 package com.github.rinorsi.cadeditor.client.screen.controller.entry.item;
 
+import com.github.rinorsi.cadeditor.PlatformUtil;
 import com.github.rinorsi.cadeditor.client.ClientCache;
 import com.github.rinorsi.cadeditor.client.ClientUtil;
 import com.github.rinorsi.cadeditor.client.ModScreenHandler;
@@ -9,6 +10,7 @@ import com.github.rinorsi.cadeditor.client.screen.view.entry.item.AttributeModif
 import com.github.rinorsi.cadeditor.common.ModTexts;
 import net.minecraft.ChatFormatting;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.registries.BuiltInRegistries;
 
 import static com.github.franckyi.guapi.api.GuapiHelper.translated;
 
@@ -34,6 +36,7 @@ public class AttributeModifierEntryController extends EntryController<AttributeM
         view.getAmountField().validProperty().addListener(model::setValid);
         view.getAttributeNameField().getSuggestions().setAll(ClientCache.getAttributeSuggestions());
         view.getAttributeListButton().onAction(this::openAttributeList);
+        view.getBaseIdButton().onAction(this::useAttributeBaseId);
         model.attributeNameProperty().addListener(this::updateAttributePreview);
         updateAttributePreview(model.getAttributeName());
     }
@@ -42,6 +45,19 @@ public class AttributeModifierEntryController extends EntryController<AttributeM
         ModScreenHandler.openListSelectionScreen(ModTexts.ATTRIBUTE,
                 model.getAttributeName().contains(":") ? model.getAttributeName() : "minecraft:" + model.getAttributeName(),
                 ClientCache.getAttributeSelectionItems(), model::setAttributeName);
+    }
+
+    private void useAttributeBaseId() {
+        ResourceLocation attributeId = ClientUtil.parseResourceLocation(model.getAttributeName());
+        if (attributeId == null) {
+            return;
+        }
+        BuiltInRegistries.ATTRIBUTE.getOptional(attributeId).ifPresent(attribute -> {
+            ResourceLocation baseId = PlatformUtil.getAttributeBaseId(attribute);
+            if (baseId != null) {
+                model.setModifierId(baseId.toString());
+            }
+        });
     }
 
     private void updateAttributePreview(String value) {

@@ -22,6 +22,7 @@ public final class ModTexts {
     public static final MutableComponent ATTRIBUTE = translated("cadeditor.gui.attribute");
     public static final MutableComponent ATTRIBUTE_MODIFIERS = translated("cadeditor.gui.attribute_modifiers");
     public static final MutableComponent ATTRIBUTE_NAME = translated("cadeditor.gui.attribute_name");
+    public static final MutableComponent USE_ATTRIBUTE_BASE_ID = translated("cadeditor.gui.use_attribute_base_id");
     public static final MutableComponent BLACK = translated("cadeditor.gui.black").withStyle(ChatFormatting.AQUA);
     public static final MutableComponent BLOCK = translated("cadeditor.text.block");
     public static final MutableComponent BLUE = translated("cadeditor.gui.blue").withStyle(ChatFormatting.BLUE);

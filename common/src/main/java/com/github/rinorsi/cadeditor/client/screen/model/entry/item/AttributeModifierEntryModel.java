@@ -16,7 +16,7 @@ public class AttributeModifierEntryModel extends EntryModel {
     private final ObjectProperty<Slot> slotProperty;
     private final ObjectProperty<Operation> operationProperty;
     private final ObjectProperty<Double> amountProperty;
-    private final UUID uuid;
+    private String modifierId;
     private final AttributeModifierAction action;
     private final String defaultAttributeName;
     private final Slot defaultSlot;
@@ -24,20 +24,24 @@ public class AttributeModifierEntryModel extends EntryModel {
     private final double defaultAmount;
 
     public AttributeModifierEntryModel(CategoryModel category, AttributeModifierAction action) {
-        this(category, "", Slot.MAINHAND, Operation.ADD, 0, UUID.randomUUID(), action);
+        this(category, "", Slot.MAINHAND, Operation.ADD, 0, UUID.randomUUID().toString(), action);
     }
 
     public AttributeModifierEntryModel(CategoryModel category, String attributeName, String slot, int operation, double amount, UUID uuid, AttributeModifierAction action) {
-        this(category, attributeName, Slot.from(slot), Operation.from(operation), amount, uuid, action);
+        this(category, attributeName, Slot.from(slot), Operation.from(operation), amount, uuid.toString(), action);
     }
 
-    public AttributeModifierEntryModel(CategoryModel category, String attributeName, Slot slot, Operation operation, double amount, UUID uuid, AttributeModifierAction action) {
+    public AttributeModifierEntryModel(CategoryModel category, String attributeName, String slot, int operation, double amount, String modifierId, AttributeModifierAction action) {
+        this(category, attributeName, Slot.from(slot), Operation.from(operation), amount, modifierId, action);
+    }
+
+    public AttributeModifierEntryModel(CategoryModel category, String attributeName, Slot slot, Operation operation, double amount, String modifierId, AttributeModifierAction action) {
         super(category);
         attributeNameProperty = StringProperty.create(attributeName);
         slotProperty = ObjectProperty.create(slot);
         operationProperty = ObjectProperty.create(operation);
         amountProperty = ObjectProperty.create(amount);
-        this.uuid = uuid;
+        this.modifierId = modifierId;
         this.action = action;
         defaultAttributeName = attributeName;
         defaultSlot = slot;
@@ -93,9 +97,17 @@ public class AttributeModifierEntryModel extends EntryModel {
         amountProperty().setValue(value);
     }
 
+    public String getModifierId() {
+        return modifierId;
+    }
+
+    public void setModifierId(String modifierId) {
+        this.modifierId = modifierId;
+    }
+
     @Override
     public void apply() {
-        action.apply(attributeNameProperty.getValue(), slotProperty.getValue().getValue(), operationProperty.getValue().getValue(), amountProperty.getValue(), uuid);
+        action.apply(attributeNameProperty.getValue(), slotProperty.getValue().getValue(), operationProperty.getValue().getValue(), amountProperty.getValue(), modifierId);
     }
 
     @Override
@@ -114,7 +126,7 @@ public class AttributeModifierEntryModel extends EntryModel {
 
     @FunctionalInterface
     public interface AttributeModifierAction {
-        void apply(String attributeName, String slot, int operation, double amount, UUID uuid);
+        void apply(String attributeName, String slot, int operation, double amount, String modifierId);
     }
 
     public enum Slot {

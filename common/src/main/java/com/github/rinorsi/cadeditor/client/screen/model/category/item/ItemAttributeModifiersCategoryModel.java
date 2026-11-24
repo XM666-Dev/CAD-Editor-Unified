@@ -20,9 +20,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
 
-import java.nio.charset.StandardCharsets;
-import java.util.UUID;
-
 public class ItemAttributeModifiersCategoryModel extends ItemEditorCategoryModel {
     private ListTag newAttributeModifiers;
     private ListTag appliedAttributeModifiers;
@@ -83,8 +80,10 @@ public class ItemAttributeModifiersCategoryModel extends ItemEditorCategoryModel
             String slot = tag.getString("Slot");
             int operation = tag.getInt("Operation");
             double amount = tag.getDouble("Amount");
-            UUID uuid = tag.getUUID("UUID");
-            return new AttributeModifierEntryModel(this, attributeName, slot, operation, amount, uuid, this::addAttributeModifier);
+            String modifierId = tag.contains("Id", Tag.TAG_STRING)
+                    ? tag.getString("Id")
+                    : tag.getUUID("UUID").toString();
+            return new AttributeModifierEntryModel(this, attributeName, slot, operation, amount, modifierId, this::addAttributeModifier);
         }
         return new AttributeModifierEntryModel(this, this::addAttributeModifier);
     }
@@ -124,7 +123,7 @@ public class ItemAttributeModifiersCategoryModel extends ItemEditorCategoryModel
                     String slot = tag.getString("Slot");
                     int op = tag.getInt("Operation");
                     double amount = tag.getDouble("Amount");
-                    UUID uuid = tag.getUUID("UUID");
+                    String modifierId = tag.getString("Id");
                     ResourceLocation attrRl = ResourceLocation.tryParse(attrName);
                     if (attrRl == null) continue;
                     ResourceKey<Attribute> attrKey = ResourceKey.create(Registries.ATTRIBUTE, attrRl);
@@ -134,7 +133,7 @@ public class ItemAttributeModifiersCategoryModel extends ItemEditorCategoryModel
                     EquipmentSlotGroup group = fromSlotString(slot);
                     // Build AttributeModifier through NBT load for operation compatibility
                     CompoundTag m = new CompoundTag();
-                    m.putString("id", uuid.toString());
+                    m.putString("id", modifierId);
                     m.putDouble("amount", amount);
                     m.putString("operation", fromOperationIndex(op));
                     AttributeModifier modifier = AttributeModifier.load(m);
@@ -153,21 +152,13 @@ public class ItemAttributeModifiersCategoryModel extends ItemEditorCategoryModel
             ResourceLocation attrId = entry.attribute().unwrapKey().map(key -> key.location()).orElse(null);
             if (attrId == null) continue;
             AttributeModifier modifier = entry.modifier();
-            CompoundTag synthetic = modifier.save();
-            UUID uuid = parseModifierUuid(synthetic);
-            if (uuid == null && modifier.id() != null) {
-                uuid = parseUuidString(modifier.id().toString());
-            }
-            if (uuid == null) {
-                uuid = deterministicModifierUuid(synthetic);
-            }
             getEntries().add(new AttributeModifierEntryModel(
                     this,
                     attrId.toString(),
                     toSlotString(entry.slot()),
                     modifier.operation().ordinal(),
                     modifier.amount(),
-                    uuid,
+                    modifier.id().toString(),
                     this::addAttributeModifier
             ));
         }
@@ -182,7 +173,7 @@ public class ItemAttributeModifiersCategoryModel extends ItemEditorCategoryModel
         populateEntriesFromComponent(defaults);
     }
 
-    private void addAttributeModifier(String attributeName, String slot, int operation, double amount, UUID uuid) {
+    private void addAttributeModifier(String attributeName, String slot, int operation, double amount, String modifierId) {
         CompoundTag tag = new CompoundTag();
         tag.putString("AttributeName", attributeName);
         if (!"all".equals(slot)) {
@@ -190,85 +181,8 @@ public class ItemAttributeModifiersCategoryModel extends ItemEditorCategoryModel
         }
         tag.putInt("Operation", operation);
         tag.putDouble("Amount", amount);
-        tag.putUUID("UUID", uuid);
+        tag.putString("Id", modifierId);
         newAttributeModifiers.add(tag);
-    }
-
-    private static UUID parseModifierUuid(CompoundTag tag) {
-        UUID uuid = parseUuidString(tag.contains("id", Tag.TAG_STRING) ? tag.getString("id") : null);
-        if (uuid != null) {
-            return uuid;
-        }
-        if (tag.contains("id", Tag.TAG_INT_ARRAY)) {
-            uuid = uuidFromIntArray(tag.getIntArray("id"));
-            if (uuid != null) {
-                return uuid;
-            }
-        }
-        if (tag.contains("uuid", Tag.TAG_INT_ARRAY)) {
-            uuid = uuidFromIntArray(tag.getIntArray("uuid"));
-            if (uuid != null) {
-                return uuid;
-            }
-        }
-        if (tag.contains("UUID", Tag.TAG_INT_ARRAY)) {
-            return uuidFromIntArray(tag.getIntArray("UUID"));
-        }
-        return null;
-    }
-
-    private static UUID parseUuidString(String value) {
-        if (value == null || value.isEmpty()) {
-            return null;
-        }
-        String trimmed = value.trim();
-        try {
-            return UUID.fromString(trimmed);
-        } catch (IllegalArgumentException ignored) {
-        }
-        String candidate = trimmed;
-        int underscore = candidate.lastIndexOf('_');
-        if (underscore >= 0 && underscore + 1 < candidate.length()) {
-            candidate = candidate.substring(underscore + 1);
-        } else if (candidate.contains(":")) {
-            candidate = candidate.substring(candidate.lastIndexOf(':') + 1);
-        }
-        candidate = candidate.replace("-", "");
-        return parseUuidFromHex(candidate);
-    }
-
-    private static UUID parseUuidFromHex(String value) {
-        if (value == null) {
-            return null;
-        }
-        String hex = value.trim();
-        if (hex.length() != 32) {
-            return null;
-        }
-        try {
-            long most = Long.parseUnsignedLong(hex.substring(0, 16), 16);
-            long least = Long.parseUnsignedLong(hex.substring(16), 16);
-            return new UUID(most, least);
-        } catch (NumberFormatException ignored) {
-            return null;
-        }
-    }
-
-    private static UUID uuidFromIntArray(int[] data) {
-        if (data.length != 4) {
-            return null;
-        }
-        long most = ((long) data[0] << 32) | (data[1] & 0xffffffffL);
-        long least = ((long) data[2] << 32) | (data[3] & 0xffffffffL);
-        return new UUID(most, least);
-    }
-
-    private static UUID deterministicModifierUuid(CompoundTag tag) {
-        CompoundTag copy = tag.copy();
-        copy.remove("id");
-        copy.remove("UUID");
-        copy.remove("uuid");
-        return UUID.nameUUIDFromBytes(copy.toString().getBytes(StandardCharsets.UTF_8));
     }
 
     private static String toSlotString(EquipmentSlotGroup g) {

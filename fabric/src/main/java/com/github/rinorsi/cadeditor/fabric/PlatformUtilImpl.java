@@ -12,6 +12,8 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 
 import java.nio.file.Path;
 import java.util.Map;
@@ -21,6 +23,19 @@ public final class PlatformUtilImpl {
     private static final Map<NetworkHandler<?>, CustomPacketPayload.Type<?>> TYPES = new ConcurrentHashMap<>();
 
     private PlatformUtilImpl() {
+    }
+
+    public static ResourceLocation getAttributeBaseId(Attribute attribute) {
+        if (attribute == Attributes.ATTACK_DAMAGE.value()) {
+            return ResourceLocation.withDefaultNamespace("base_attack_damage");
+        }
+        if (attribute == Attributes.ATTACK_SPEED.value()) {
+            return ResourceLocation.withDefaultNamespace("base_attack_speed");
+        }
+        if (attribute == Attributes.ENTITY_INTERACTION_RANGE.value()) {
+            return ResourceLocation.withDefaultNamespace("base_entity_reach");
+        }
+        return null;
     }
 
     public static Path getConfigDir() {

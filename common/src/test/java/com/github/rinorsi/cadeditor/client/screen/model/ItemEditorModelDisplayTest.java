@@ -174,6 +174,31 @@ class ItemEditorModelDisplayTest {
     }
 
     @Test
+    void editingSwordAttributesRetainsVanillaBaseModifierIds() {
+        var model = createEditor(new ItemStack(Items.DIAMOND_SWORD));
+        var attributes = model.getCategories().stream()
+                .filter(ItemAttributeModifiersCategoryModel.class::isInstance)
+                .map(ItemAttributeModifiersCategoryModel.class::cast).findFirst().orElseThrow();
+        var damage = attributes.getEntries().stream()
+                .filter(AttributeModifierEntryModel.class::isInstance)
+                .map(AttributeModifierEntryModel.class::cast)
+                .filter(entry -> entry.getAttributeName().equals("minecraft:generic.attack_damage"))
+                .findFirst().orElseThrow();
+
+        damage.setAmount(10.0);
+        model.apply();
+
+        var modifiers = model.getContext().getItemStack().get(DataComponents.ATTRIBUTE_MODIFIERS);
+        assertNotNull(modifiers);
+        assertTrue(modifiers.modifiers().stream().anyMatch(entry ->
+                entry.modifier().id().toString().equals("minecraft:base_attack_damage")
+                        && entry.modifier().amount() == 10.0));
+        assertTrue(modifiers.modifiers().stream().anyMatch(entry ->
+                entry.modifier().id().toString().equals("minecraft:base_attack_speed")));
+        assertEquals(2, modifiers.modifiers().size(), "editing base values must not add extra modifiers");
+    }
+
+    @Test
     void savingLoreDoesNotReadBackAStaleTextField() {
         var model = createEditor();
         var display = displayCategory(model);

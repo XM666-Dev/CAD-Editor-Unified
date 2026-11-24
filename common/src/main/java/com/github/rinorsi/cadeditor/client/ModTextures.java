@@ -10,6 +10,7 @@ public class ModTextures {
     public static final ResourceLocation BYTE_ARRAY_TAG_ADD = gui("byte_array_tag_add");
     public static final ResourceLocation BYTE_TAG = gui("byte_tag");
     public static final ResourceLocation BYTE_TAG_ADD = gui("byte_tag_add");
+    public static final ResourceLocation BASE = gui("base");
     public static final ResourceLocation COLLAPSE = gui("collapse_all");
     public static final ResourceLocation COLOR_AQUA = gui("color_aqua");
     public static final ResourceLocation COLOR_BLACK = gui("color_black");

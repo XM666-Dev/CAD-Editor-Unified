@@ -7,8 +7,10 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.neoforge.common.extensions.ICommonPacketListener;
+import net.neoforged.neoforge.common.extensions.IAttributeExtension;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.HandlerThread;
@@ -23,6 +25,10 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class PlatformUtilImpl {
+    public static ResourceLocation getAttributeBaseId(Attribute attribute) {
+        return ((IAttributeExtension) attribute).getBaseId();
+    }
+
     public static Path getConfigDir() {
         return FMLPaths.CONFIGDIR.get();
     }
