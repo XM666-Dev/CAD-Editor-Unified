@@ -3,6 +3,7 @@ package com.github.rinorsi.cadeditor.client.screen.model.category.item;
 import com.github.rinorsi.cadeditor.client.screen.model.ItemEditorModel;
 import com.github.rinorsi.cadeditor.client.screen.model.entry.EntryModel;
 import com.github.rinorsi.cadeditor.client.screen.model.entry.TextEntryModel;
+import com.github.rinorsi.cadeditor.client.util.texteditor.LegacyColorCodes;
 import com.github.rinorsi.cadeditor.common.ModTexts;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
@@ -146,7 +147,7 @@ public class ItemDisplayCategoryModel extends ItemEditorCategoryModel {
     }
 
     static MutableComponent plainName(Component value) {
-        return Component.literal(value.getString());
+        return Component.literal(LegacyColorCodes.compact(value.getString()));
     }
 
     static MutableComponent normalizeLoreLine(Component value) {
@@ -154,7 +155,8 @@ public class ItemDisplayCategoryModel extends ItemEditorCategoryModel {
             return null;
         }
         String text = value.getString().replace("\u00a7r", "\u00a77").replace("\u00a7R", "\u00a77");
-        return Component.literal(text.startsWith("\u00a77") ? text : "\u00a77" + text);
+        String withDefaultColor = text.startsWith("\u00a77") ? text : "\u00a77" + text;
+        return Component.literal(LegacyColorCodes.compact(withDefaultColor));
     }
 
     private static boolean isBlank(Component c) {

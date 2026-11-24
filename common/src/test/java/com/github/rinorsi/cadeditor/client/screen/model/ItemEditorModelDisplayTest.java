@@ -185,7 +185,7 @@ class ItemEditorModelDisplayTest {
 
         model.apply();
 
-        assertSavedLore(model, edited);
+        assertSavedLore(model, "§cRed lore");
         assertEquals(edited, lore.getValue().getString());
     }
 
@@ -199,7 +199,7 @@ class ItemEditorModelDisplayTest {
             String edited = "\u00a77" + color + "Updated lore\u00a77";
             lore.setValue(Component.literal(edited));
             model.apply();
-            assertSavedLore(model, edited);
+            assertSavedLore(model, color + "Updated lore");
         }
     }
 
@@ -248,11 +248,11 @@ class ItemEditorModelDisplayTest {
         secondEditor.apply();
         secondEditor.getContext().update();
 
-        assertSavedLore(secondEditor, "§7§cFirst lore§7");
+        assertSavedLore(secondEditor, "§cFirst lore");
         var thirdEditor = createEditor(secondEditor.getContext().getItemStack().copy());
         var reopenedLore = (TextEntryModel) displayCategory(thirdEditor).getEntries()
                 .get(displayCategory(thirdEditor).getEntryListStart());
-        assertEquals("§7§cFirst lore§7", reopenedLore.getValue().getString());
+        assertEquals("§cFirst lore", reopenedLore.getValue().getString());
     }
 
     @Test
@@ -271,12 +271,12 @@ class ItemEditorModelDisplayTest {
         editor.setActiveTextEditor(controller);
 
         controller.addColorFormatting("red");
-        assertEquals("§7§cFirst lore§7",
+        assertEquals("§cFirst lore",
                 editor.getContext().getItemStack().get(DataComponents.LORE).lines().getFirst().getString());
         editor.apply();
         editor.getContext().update();
 
-        assertSavedLore(editor, "§7§cFirst lore§7");
+        assertSavedLore(editor, "§cFirst lore");
     }
 
     @Test

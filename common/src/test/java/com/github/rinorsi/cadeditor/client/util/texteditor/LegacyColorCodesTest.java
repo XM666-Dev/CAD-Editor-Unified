@@ -94,6 +94,20 @@ class LegacyColorCodesTest {
     }
 
     @Test
+    void compactsOverriddenColorsAndTrailingCodes() {
+        assertEquals("§bName", LegacyColorCodes.compact("§7§bName§r"));
+        assertEquals("§cText", LegacyColorCodes.compact("§7§b§cText§7"));
+        assertEquals("Text", LegacyColorCodes.compact("Text§r§7"));
+    }
+
+    @Test
+    void compactPreservesNecessaryStyleTransitions() {
+        assertEquals("§c§lBold§r§cPlain", LegacyColorCodes.compact("§c§lBold§r§cPlain"));
+        assertEquals("§c§lBold", LegacyColorCodes.compact("§c§l§lBold§7§r"));
+        assertEquals("§bText", LegacyColorCodes.compact("§c§l§bText"));
+    }
+
+    @Test
     void everySelectionPreservesOutsideColorsAndAllLegacyStyles() {
         String text = "a\u00a7cb\u00a7lc\u00a79d\u00a7oe\u00a7rf\u00a7Ag";
         List<Visible> original = visible(text);

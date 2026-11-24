@@ -21,6 +21,47 @@ public final class LegacyColorCodes {
         return recolor(text, start, end, color).text();
     }
 
+    public static String compact(String text) {
+        if (text == null || text.isEmpty()) {
+            return text;
+        }
+        StringBuilder result = new StringBuilder(text.length());
+        FormatState active = new FormatState();
+        FormatState pending = active.copy();
+        for (int i = 0; i < text.length();) {
+            ChatFormatting code = codeAt(text, i);
+            if (code != null) {
+                pending.accept(code);
+                i += 2;
+                continue;
+            }
+            appendTransition(result, active, pending);
+            active = pending.copy();
+            result.append(text.charAt(i++));
+        }
+        return result.toString();
+    }
+
+    private static void appendTransition(StringBuilder result, FormatState active, FormatState target) {
+        if (active.equals(target)) {
+            return;
+        }
+        if (active.color != target.color) {
+            result.append(target.color == null ? ChatFormatting.RESET : target.color);
+            target.styles.forEach(result::append);
+            return;
+        }
+        if (target.styles.containsAll(active.styles)) {
+            target.styles.stream().filter(style -> !active.styles.contains(style)).forEach(result::append);
+            return;
+        }
+        result.append(ChatFormatting.RESET);
+        if (target.color != null) {
+            result.append(target.color);
+        }
+        target.styles.forEach(result::append);
+    }
+
     public static Edit recolor(String text, int anchor, int cursor, String color) {
         String prefix = prefix(color);
         int start = Math.min(anchor, cursor);
@@ -107,6 +148,37 @@ public final class LegacyColorCodes {
 
         void appendStyles(StringBuilder result) {
             styles.forEach(result::append);
+        }
+    }
+
+    private static final class FormatState {
+        private ChatFormatting color;
+        private final Set<ChatFormatting> styles = new LinkedHashSet<>();
+
+        void accept(ChatFormatting code) {
+            if (code.isColor() || code == ChatFormatting.RESET) {
+                color = code.isColor() ? code : null;
+                styles.clear();
+            } else {
+                styles.add(code);
+            }
+        }
+
+        FormatState copy() {
+            FormatState copy = new FormatState();
+            copy.color = color;
+            copy.styles.addAll(styles);
+            return copy;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof FormatState other && color == other.color && styles.equals(other.styles);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * (color == null ? 0 : color.hashCode()) + styles.hashCode();
         }
     }
 }

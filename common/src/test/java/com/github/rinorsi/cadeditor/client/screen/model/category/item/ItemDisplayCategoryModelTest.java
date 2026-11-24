@@ -13,7 +13,7 @@ class ItemDisplayCategoryModelTest {
         var source = Component.literal("").withStyle(style -> style.withItalic(false))
                 .append(Component.literal("\u00a7cSword\u00a7r").withStyle(ChatFormatting.BOLD));
         var result = ItemDisplayCategoryModel.plainName(source);
-        assertEquals("\u00a7cSword\u00a7r", result.getString());
+        assertEquals("\u00a7cSword", result.getString());
         assertEquals(Style.EMPTY, result.getStyle());
         assertTrue(result.getSiblings().isEmpty());
     }
@@ -33,7 +33,7 @@ class ItemDisplayCategoryModelTest {
     void repeatedLoreNormalizationDoesNotDuplicateThePrefix() {
         var first = ItemDisplayCategoryModel.normalizeLoreLine(Component.literal("\u00a7cRed\u00a7r"));
         var second = ItemDisplayCategoryModel.normalizeLoreLine(first);
-        assertEquals("\u00a77\u00a7cRed\u00a77", second.getString());
+        assertEquals("\u00a7cRed", second.getString());
         assertEquals(first, second);
     }
 
@@ -47,7 +47,15 @@ class ItemDisplayCategoryModelTest {
     void loreResetsReturnToGrayWithoutChangingOtherColors() {
         var result = ItemDisplayCategoryModel.normalizeLoreLine(
                 Component.literal("\u00a7cRed\u00a7rGray\u00a79Blue\u00a7RGray"));
-        assertEquals("\u00a77\u00a7cRed\u00a77Gray\u00a79Blue\u00a77Gray", result.getString());
+        assertEquals("\u00a7cRed\u00a77Gray\u00a79Blue\u00a77Gray", result.getString());
         assertEquals(Style.EMPTY, result.getStyle());
+    }
+
+    @Test
+    void namesAndLoreDiscardOverriddenAndTrailingColors() {
+        assertEquals("§bName", ItemDisplayCategoryModel.plainName(
+                Component.literal("§7§bName§r§7")).getString());
+        assertEquals("§bLore", ItemDisplayCategoryModel.normalizeLoreLine(
+                Component.literal("§7§bLore§7")).getString());
     }
 }
