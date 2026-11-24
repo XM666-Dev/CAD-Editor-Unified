@@ -93,12 +93,19 @@ public class TextEntryController extends ValueEntryController<TextEntryModel, Te
     }
 
     private MutableComponent createText() {
+        if (model.usesLegacyColorCodes()) {
+            return Component.literal(model.normalizeLegacyResets(view.getTextField().getText()));
+        }
         TextEditorOutputFormatter formatter = new TextEditorOutputFormatter(text().append(text("")));
         formatter.format(view.getTextField().getText(), 0, formattings);
         return formatter.getText();
     }
 
     private void initFormattings(MutableComponent text) {
+        if (model.usesLegacyColorCodes()) {
+            formattings.clear();
+            return;
+        }
         TextEditorInputParser parser = new TextEditorInputParser();
         parser.parse(text);
         formattings.setAll(parser.getFormattings());
@@ -140,7 +147,7 @@ public class TextEntryController extends ValueEntryController<TextEntryModel, Te
                     existing.setEnd(edit.mapPosition(oldEnd));
                 }
                 formattings.removeIf(formatting -> formatting.getStart() >= formatting.getEnd());
-                view.getTextField().setText(edit.text());
+                view.getTextField().setText(model.normalizeLegacyResets(edit.text()));
                 view.getTextField().setCursorPosition(i < j ? edit.selectionStart() : edit.selectionEnd());
                 view.getTextField().setHighlightPosition(i < j ? edit.selectionEnd() : edit.selectionStart());
             } finally {
@@ -167,6 +174,24 @@ public class TextEntryController extends ValueEntryController<TextEntryModel, Te
         int i = view.getTextField().getCursorPosition();
         int j = view.getTextField().getHighlightPosition();
         if (i == j) return;
+        if (model.usesLegacyColorCodes()) {
+            String code = switch (target) {
+                case BOLD -> "\u00a7l";
+                case ITALIC -> "\u00a7o";
+                case UNDERLINED -> "\u00a7n";
+                case STRIKETHROUGH -> "\u00a7m";
+                case OBFUSCATED -> "\u00a7k";
+            };
+            int start = Math.min(i, j);
+            int end = Math.max(i, j);
+            String value = view.getTextField().getText();
+            view.getTextField().setText(value.substring(0, start) + code
+                    + value.substring(start, end) + model.getLegacyResetCode() + value.substring(end));
+            view.getTextField().setCursorPosition(i + 2);
+            view.getTextField().setHighlightPosition(j + 2);
+            updateModel();
+            return;
+        }
         StyleFormatting formatting = new StyleFormatting(Math.min(i, j), Math.max(i, j), target);
         if (formattings.contains(formatting)) {
             formattings.remove(formatting);

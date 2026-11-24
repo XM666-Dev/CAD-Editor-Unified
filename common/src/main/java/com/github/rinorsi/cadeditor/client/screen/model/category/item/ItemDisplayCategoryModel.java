@@ -4,11 +4,9 @@ import com.github.rinorsi.cadeditor.client.screen.model.ItemEditorModel;
 import com.github.rinorsi.cadeditor.client.screen.model.entry.EntryModel;
 import com.github.rinorsi.cadeditor.client.screen.model.entry.TextEntryModel;
 import com.github.rinorsi.cadeditor.common.ModTexts;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.contents.PlainTextContents;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
 
@@ -57,6 +55,7 @@ public class ItemDisplayCategoryModel extends ItemEditorCategoryModel {
     private EntryModel createLoreEntry(MutableComponent value) {
         TextEntryModel entry = new TextEntryModel(this, null, value, lore -> {});
         entry.setLegacyColorCodes(true);
+        entry.setLegacyResetCode("\u00a77");
         entry.listIndexProperty().addListener(index -> entry.setLabel(ModTexts.lore(index + 1)));
         return entry;
     }
@@ -69,13 +68,14 @@ public class ItemDisplayCategoryModel extends ItemEditorCategoryModel {
         ItemStack stack = getStack();
         List<Component> loreLines = getLoreEntries().stream()
                 .map(TextEntryModel::getValue)
-                .map(this::normalizeLoreLine)
+                .map(ItemDisplayCategoryModel::normalizeLoreLine)
                 .filter(v -> v != null)
                 .map(Component.class::cast)
                 .toList();
         if (!loreLines.isEmpty()) {
             stack.set(DataComponents.LORE, new ItemLore(loreLines));
-        } else {
+        } else if (stack.get(DataComponents.LORE) instanceof ItemLore existingLore
+                && !existingLore.lines().isEmpty()) {
             stack.remove(DataComponents.LORE);
         }
         Component customName = stack.get(DataComponents.CUSTOM_NAME);
@@ -94,15 +94,18 @@ public class ItemDisplayCategoryModel extends ItemEditorCategoryModel {
 
     private void setItemNameOverride(MutableComponent value) {
         ItemStack stack = getStack();
-        if (isBlank(value)) {
-            stack.remove(DataComponents.ITEM_NAME);
+        Component defaultComponent = new ItemStack(stack.getItem()).get(DataComponents.ITEM_NAME);
+        Component defaultName = defaultComponent != null ? defaultComponent
+                : Component.translatable(stack.getDescriptionId());
+        if (isBlank(value) || value.getString().equals(defaultName.getString())) {
+            if (defaultComponent != null) {
+                stack.set(DataComponents.ITEM_NAME, defaultComponent);
+            } else if (stack.has(DataComponents.ITEM_NAME)) {
+                stack.remove(DataComponents.ITEM_NAME);
+            }
             return;
         }
-        MutableComponent copy = value.copy();
-        if (!copy.getSiblings().isEmpty() && copy.getContents() instanceof PlainTextContents lc && lc.text().isEmpty()) {
-            copy = copy.withStyle(style -> style.withItalic(false));
-        }
-        stack.set(DataComponents.ITEM_NAME, copy);
+        stack.set(DataComponents.ITEM_NAME, plainName(value));
     }
 
     private MutableComponent getCustomName() {
@@ -115,15 +118,7 @@ public class ItemDisplayCategoryModel extends ItemEditorCategoryModel {
             getStack().remove(DataComponents.CUSTOM_NAME);
             return;
         }
-        if (!value.getString().isEmpty()) {
-            MutableComponent copy = value.copy();
-            if (!copy.getSiblings().isEmpty() && copy.getContents() instanceof PlainTextContents lc && lc.text().isEmpty()) {
-                copy = copy.withStyle(style -> style.withItalic(false));
-            }
-            getStack().set(DataComponents.CUSTOM_NAME, copy);
-        } else {
-            getStack().remove(DataComponents.CUSTOM_NAME);
-        }
+        getStack().set(DataComponents.CUSTOM_NAME, plainName(value));
     }
 
     private List<TextEntryModel> getLoreEntries() {
@@ -144,18 +139,16 @@ public class ItemDisplayCategoryModel extends ItemEditorCategoryModel {
                 .toList();
     }
 
-    private MutableComponent normalizeLoreLine(MutableComponent value) {
-        if (value == null) {
+    static MutableComponent plainName(Component value) {
+        return Component.literal(value.getString());
+    }
+
+    static MutableComponent normalizeLoreLine(Component value) {
+        if (isBlank(value)) {
             return null;
         }
-        MutableComponent copy = value.copy();
-        if (copy.getString().isEmpty() && copy.getSiblings().isEmpty()) {
-            return null;
-        }
-        if (!copy.getString().isEmpty() && copy.getContents() instanceof PlainTextContents lc && lc.text().isEmpty() && !copy.getSiblings().isEmpty()) {
-            copy = copy.withStyle(style -> style.withItalic(false).withColor(ChatFormatting.WHITE));
-        }
-        return copy;
+        String text = value.getString().replace("\u00a7r", "\u00a77").replace("\u00a7R", "\u00a77");
+        return Component.literal(text.startsWith("\u00a77") ? text : "\u00a77" + text);
     }
 
     private static boolean isBlank(Component c) {

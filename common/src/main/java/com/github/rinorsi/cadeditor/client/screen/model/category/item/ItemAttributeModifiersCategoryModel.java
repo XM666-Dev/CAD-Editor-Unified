@@ -25,9 +25,22 @@ import java.util.UUID;
 
 public class ItemAttributeModifiersCategoryModel extends ItemEditorCategoryModel {
     private ListTag newAttributeModifiers;
+    private ListTag appliedAttributeModifiers;
 
     public ItemAttributeModifiersCategoryModel(ItemEditorModel editor) {
         super(ModTexts.ATTRIBUTE_MODIFIERS, editor);
+    }
+
+    @Override
+    public void initalize() {
+        super.initalize();
+        appliedAttributeModifiers = collectAttributeModifiers();
+    }
+
+    private ListTag collectAttributeModifiers() {
+        newAttributeModifiers = new ListTag();
+        super.apply();
+        return newAttributeModifiers;
     }
 
     @Override
@@ -83,8 +96,11 @@ public class ItemAttributeModifiersCategoryModel extends ItemEditorCategoryModel
 
     @Override
     public void apply() {
-        newAttributeModifiers = new ListTag();
-        super.apply();
+        collectAttributeModifiers();
+        // Preserve default modifier IDs and component metadata until the list is edited.
+        if (newAttributeModifiers.equals(appliedAttributeModifiers)) {
+            return;
+        }
         // 1) Keep legacy NBT for compatibility with existing UI
         if (!newAttributeModifiers.isEmpty()) {
             getOrCreateTag().put("AttributeModifiers", newAttributeModifiers);
@@ -95,6 +111,7 @@ public class ItemAttributeModifiersCategoryModel extends ItemEditorCategoryModel
         ItemStack stack = getParent().getContext().getItemStack();
         if (newAttributeModifiers.isEmpty()) {
             stack.remove(DataComponents.ATTRIBUTE_MODIFIERS);
+            appliedAttributeModifiers = newAttributeModifiers.copy();
             return;
         }
         ItemAttributeModifiers mods = ItemAttributeModifiers.EMPTY;
@@ -127,6 +144,7 @@ public class ItemAttributeModifiersCategoryModel extends ItemEditorCategoryModel
                 }
             }
             stack.set(DataComponents.ATTRIBUTE_MODIFIERS, mods);
+            appliedAttributeModifiers = newAttributeModifiers.copy();
         }
     }
 

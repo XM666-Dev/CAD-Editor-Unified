@@ -11,6 +11,19 @@ public class TextEntryModel extends ValueEntryModel<MutableComponent> {
     private Runnable onApply;
     private boolean deletable = true;
     private boolean legacyColorCodes;
+    private String legacyResetCode = "\u00a7r";
+
+    public String getLegacyResetCode() {
+        return legacyResetCode;
+    }
+
+    public void setLegacyResetCode(String legacyResetCode) {
+        this.legacyResetCode = legacyResetCode;
+    }
+
+    public String normalizeLegacyResets(String value) {
+        return value.replace("\u00a7r", legacyResetCode).replace("\u00a7R", legacyResetCode);
+    }
 
     public boolean usesLegacyColorCodes() {
         return legacyColorCodes;
@@ -34,7 +47,8 @@ public class TextEntryModel extends ValueEntryModel<MutableComponent> {
 
     @Override
     public void apply() {
-        if (onApply != null) {
+        // Legacy fields update immediately; a detached view must not overwrite them on save.
+        if (!usesLegacyColorCodes() && onApply != null) {
             onApply.run();
         }
         super.apply();

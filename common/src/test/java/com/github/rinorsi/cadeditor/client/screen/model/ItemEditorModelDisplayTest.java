@@ -1,0 +1,211 @@
+package com.github.rinorsi.cadeditor.client.screen.model;
+
+import com.github.franckyi.databindings.base.DataBindingsImpl;
+import com.github.rinorsi.cadeditor.client.context.ItemEditorContext;
+import com.github.rinorsi.cadeditor.client.screen.model.category.item.ItemDisplayCategoryModel;
+import com.github.rinorsi.cadeditor.client.screen.model.category.item.ItemAttributeModifiersCategoryModel;
+import com.github.rinorsi.cadeditor.client.screen.model.entry.item.AttributeModifierEntryModel;
+import com.github.rinorsi.cadeditor.client.screen.model.entry.TextEntryModel;
+import net.minecraft.SharedConstants;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.Bootstrap;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.ItemLore;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class ItemEditorModelDisplayTest {
+    static {
+        SharedConstants.tryDetectVersion();
+        Bootstrap.bootStrap();
+        DataBindingsImpl.init();
+    }
+
+    private static final RegistryAccess.Frozen REGISTRY_ACCESS =
+            RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY).freeze();
+
+    @Test
+    void defaultItemNameIsNotSavedAsAnOverride() {
+        for (var item : List.of(Items.STICK, Items.DIAMOND_SWORD)) {
+            var model = createEditor(new ItemStack(item));
+            for (int save = 0; save < 2; save++) {
+                model.apply();
+                assertNoItemNameOverride(model);
+            }
+        }
+    }
+
+    @Test
+    void restoringDefaultOrBlankItemNameRemovesExistingOverride() {
+        for (String name : List.of("", Component.translatable(Items.STICK.getDescriptionId()).getString())) {
+            var stack = new ItemStack(Items.STICK);
+            stack.set(DataComponents.ITEM_NAME, Component.literal("Custom item name"));
+            var model = createEditor(stack);
+            var entry = (TextEntryModel) displayCategory(model).getEntries().getFirst();
+            entry.setValue(Component.literal(name));
+            for (int save = 0; save < 2; save++) {
+                model.apply();
+                assertNoItemNameOverride(model);
+            }
+        }
+    }
+
+    @Test
+    void customItemNameStillPersists() {
+        var model = createEditor(new ItemStack(Items.STICK));
+        var entry = (TextEntryModel) displayCategory(model).getEntries().getFirst();
+        entry.setValue(Component.literal("\u00a7cCustom item name"));
+        for (int save = 0; save < 2; save++) {
+            model.apply();
+            var decoded = ItemStack.parseOptional(REGISTRY_ACCESS, model.getContext().getTag());
+            assertEquals("\u00a7cCustom item name", decoded.get(DataComponents.ITEM_NAME).getString());
+        }
+    }
+
+    private static void assertNoItemNameOverride(ItemEditorModel model) {
+        var components = model.getContext().getTag().getCompound("components");
+        assertFalse(components.contains("minecraft:item_name"));
+        assertFalse(components.contains("!minecraft:item_name"));
+        assertNull(model.getContext().getItemStack().get(DataComponents.ITEM_NAME));
+    }
+
+    @Test
+    void unrelatedEditsDoNotWriteLoreOrAttributeOverrides() {
+        for (var item : List.of(Items.STICK, Items.DIAMOND_SWORD, Items.DIAMOND_PICKAXE, Items.DIAMOND_CHESTPLATE)) {
+            ItemStack stack = new ItemStack(item);
+            var originalModifiers = stack.get(DataComponents.ATTRIBUTE_MODIFIERS);
+            var model = createEditor(stack);
+            var name = (TextEntryModel) displayCategory(model).getEntries().get(1);
+            name.setValue(Component.literal("Edited name"));
+
+            for (int save = 0; save != 2; save++) {
+                model.apply();
+                var components = model.getContext().getTag().getCompound("components");
+                assertFalse(components.contains("minecraft:attribute_modifiers"), item.toString());
+                assertFalse(components.contains("!minecraft:attribute_modifiers"), item.toString());
+                assertFalse(components.contains("!minecraft:lore"), item.toString());
+                assertEquals(originalModifiers, model.getContext().getItemStack().get(DataComponents.ATTRIBUTE_MODIFIERS));
+            }
+        }
+    }
+
+    @Test
+    void deletingExistingLoreStillPersists() {
+        var model = createEditor();
+        displayCategory(model).deleteEntry(0);
+
+        model.apply();
+        model.apply();
+
+        var lore = ItemStack.parseOptional(REGISTRY_ACCESS, model.getContext().getTag()).get(DataComponents.LORE);
+        assertTrue(lore == null || lore.lines().isEmpty());
+    }
+
+    @Test
+    void deletingDefaultModifiersStillPersists() {
+        var model = createEditor(new ItemStack(Items.DIAMOND_SWORD));
+        var attributes = model.getCategories().stream()
+                .filter(ItemAttributeModifiersCategoryModel.class::isInstance)
+                .map(ItemAttributeModifiersCategoryModel.class::cast).findFirst().orElseThrow();
+        while (attributes.getEntries().getFirst() instanceof AttributeModifierEntryModel) {
+            attributes.deleteEntry(0);
+        }
+
+        model.apply();
+        model.apply();
+
+        assertTrue(model.getContext().getTag().getCompound("components").contains("!minecraft:attribute_modifiers"));
+        assertNull(model.getContext().getItemStack().get(DataComponents.ATTRIBUTE_MODIFIERS));
+    }
+
+    @Test
+    void savingLoreDoesNotReadBackAStaleTextField() {
+        var model = createEditor();
+        var display = displayCategory(model);
+        var lore = (TextEntryModel) display.getEntries().get(display.getEntryListStart());
+        var staleText = lore.getValue().copy();
+        lore.setOnApply(() -> lore.setValue(staleText.copy()));
+        String edited = "\u00a77\u00a7cRed lore\u00a77";
+        lore.setValue(Component.literal(edited));
+
+        model.apply();
+
+        assertSavedLore(model, edited);
+        assertEquals(edited, lore.getValue().getString());
+    }
+
+    @Test
+    void successiveLoreEditsSurviveRepeatedSaves() {
+        var model = createEditor();
+        var display = displayCategory(model);
+        var lore = (TextEntryModel) display.getEntries().get(display.getEntryListStart());
+        lore.setOnApply(() -> lore.setValue(Component.literal("Old lore")));
+        for (String color : List.of("\u00a7c", "\u00a79", "\u00a76")) {
+            String edited = "\u00a77" + color + "Updated lore\u00a77";
+            lore.setValue(Component.literal(edited));
+            model.apply();
+            assertSavedLore(model, edited);
+        }
+    }
+
+    @Test
+    void richTextEntriesStillFlushTheirFormattingOnApply() {
+        var model = createEditor();
+        var applied = new AtomicReference<Component>();
+        var entry = new TextEntryModel(displayCategory(model), Component.literal("Text"),
+                Component.literal("Before"), applied::set);
+        entry.setOnApply(() -> entry.setValue(Component.literal("After")));
+
+        entry.apply();
+
+        assertNotNull(applied.get());
+        assertEquals("After", applied.get().getString());
+    }
+
+    private static TestItemEditorModel createEditor() {
+        ItemStack stack = new ItemStack(Items.DIAMOND_SWORD);
+        stack.set(DataComponents.LORE, new ItemLore(List.of(Component.literal("Old lore"))));
+        return createEditor(stack);
+    }
+
+    private static TestItemEditorModel createEditor(ItemStack stack) {
+        var context = new ItemEditorContext(stack, null, true, ignored -> {});
+        var model = new TestItemEditorModel(context);
+        model.initalize();
+        return model;
+    }
+
+    private static ItemDisplayCategoryModel displayCategory(ItemEditorModel model) {
+        return model.getCategories().stream()
+                .filter(ItemDisplayCategoryModel.class::isInstance)
+                .map(ItemDisplayCategoryModel.class::cast)
+                .findFirst().orElseThrow();
+    }
+
+    private static void assertSavedLore(ItemEditorModel model, String expected) {
+        var context = model.getContext();
+        assertEquals(expected, context.getItemStack().get(DataComponents.LORE).lines().getFirst().getString());
+        ItemStack decoded = ItemStack.parseOptional(REGISTRY_ACCESS, context.getTag());
+        assertFalse(decoded.isEmpty());
+        assertEquals(expected, decoded.get(DataComponents.LORE).lines().getFirst().getString());
+    }
+
+    private static class TestItemEditorModel extends ItemEditorModel {
+        TestItemEditorModel(ItemEditorContext context) {
+            super(context);
+        }
+
+        @Override
+        protected RegistryAccess.Frozen getRegistryAccess() {
+            return REGISTRY_ACCESS;
+        }
+    }
+}
