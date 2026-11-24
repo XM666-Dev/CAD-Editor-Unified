@@ -45,6 +45,11 @@ public class TextEntryController extends ValueEntryController<TextEntryModel, Te
     }
 
     @Override
+    public void commitPendingEdit() {
+        updateModel();
+    }
+
+    @Override
     protected void resetModel() {
         super.resetModel();
         isResettingModel = true;

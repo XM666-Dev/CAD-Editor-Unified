@@ -1,11 +1,20 @@
 package com.github.rinorsi.cadeditor.client.screen.model;
 
 import com.github.franckyi.databindings.base.DataBindingsImpl;
+import com.github.franckyi.guapi.api.Guapi;
+import com.github.franckyi.guapi.base.NodeFactoryImpl;
 import com.github.rinorsi.cadeditor.client.context.ItemEditorContext;
+import com.github.rinorsi.cadeditor.client.screen.controller.entry.TextEntryController;
 import com.github.rinorsi.cadeditor.client.screen.model.category.item.ItemDisplayCategoryModel;
 import com.github.rinorsi.cadeditor.client.screen.model.category.item.ItemAttributeModifiersCategoryModel;
+import com.github.rinorsi.cadeditor.client.screen.model.category.item.ItemGeneralCategoryModel;
+import com.github.rinorsi.cadeditor.client.screen.model.entry.IntegerEntryModel;
 import com.github.rinorsi.cadeditor.client.screen.model.entry.item.AttributeModifierEntryModel;
 import com.github.rinorsi.cadeditor.client.screen.model.entry.TextEntryModel;
+import com.github.rinorsi.cadeditor.client.screen.view.entry.TextEntryView;
+import com.github.rinorsi.cadeditor.client.util.texteditor.StyleType;
+import com.github.rinorsi.cadeditor.client.util.texteditor.TextEditorActionHandler;
+import com.github.rinorsi.cadeditor.client.util.texteditor.LegacyColorCodes;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.component.DataComponents;
@@ -13,8 +22,10 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.item.component.CustomModelData;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -27,10 +38,46 @@ class ItemEditorModelDisplayTest {
         SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
         DataBindingsImpl.init();
+        Guapi.setNodeFactory(NodeFactoryImpl.INSTANCE);
     }
 
     private static final RegistryAccess.Frozen REGISTRY_ACCESS =
             RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY).freeze();
+
+    @Test
+    void clearingCustomModelDataDoesNotRestoreTheOldSnapshot() {
+        var stack = new ItemStack(Items.STICK);
+        stack.set(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(123));
+        var model = createEditor(stack);
+        var general = model.getCategories().stream()
+                .filter(ItemGeneralCategoryModel.class::isInstance).findFirst().orElseThrow();
+        ((IntegerEntryModel) general.getEntries().get(7)).setValue(0);
+
+        for (int save = 0; save < 2; save++) {
+            model.apply();
+            model.getContext().update();
+            assertNull(model.getContext().getItemStack().get(DataComponents.CUSTOM_MODEL_DATA));
+            assertFalse(model.getContext().getTag().getCompound("components").contains("minecraft:custom_model_data"));
+        }
+    }
+
+    @Test
+    void largeCountsStillProduceASerializableSave() {
+        for (int count : List.of(65, 99, 100, 999)) {
+            var model = createEditor(new ItemStack(Items.STICK));
+            var general = model.getCategories().stream()
+                    .filter(ItemGeneralCategoryModel.class::isInstance).findFirst().orElseThrow();
+            ((IntegerEntryModel) general.getEntries().get(1)).setValue(count);
+
+            model.apply();
+            model.getContext().update();
+
+            var decoded = ItemStack.parseOptional(REGISTRY_ACCESS, model.getContext().getTag());
+            assertFalse(decoded.isEmpty());
+            assertEquals(Math.min(count, Item.ABSOLUTE_MAX_STACK_SIZE), decoded.getCount());
+            assertTrue(decoded.getMaxStackSize() <= Item.ABSOLUTE_MAX_STACK_SIZE);
+        }
+    }
 
     @Test
     void defaultItemNameIsNotSavedAsAnOverride() {
@@ -154,6 +201,82 @@ class ItemEditorModelDisplayTest {
             model.apply();
             assertSavedLore(model, edited);
         }
+    }
+
+    @Test
+    void doneCommitsTheFocusedLoreEditorBeforeSaving() {
+        var model = createEditor();
+        var display = displayCategory(model);
+        var lore = (TextEntryModel) display.getEntries().get(display.getEntryListStart());
+        String edited = "\u00a77Last focused edit";
+        model.setActiveTextEditor(new TextEditorActionHandler() {
+            @Override
+            public void commitPendingEdit() {
+                lore.setValue(Component.literal(edited));
+            }
+
+            @Override public void removeColorFormatting() {}
+            @Override public void addColorFormatting(String color) {}
+            @Override public void addStyleFormatting(StyleType type) {}
+        });
+
+        model.apply();
+        model.getContext().update();
+
+        assertSavedLore(model, edited);
+    }
+
+    @Test
+    void recoloringLoreSurvivesClosingAndOpeningTheEditorAgain() {
+        var firstEditor = createEditor(new ItemStack(Items.IRON_SWORD));
+        var firstDisplay = displayCategory(firstEditor);
+        firstDisplay.addEntryInList();
+        var addedLore = (TextEntryModel) firstDisplay.getEntries().get(firstDisplay.getEntryListStart());
+        addedLore.setValue(Component.literal("First lore"));
+        firstEditor.apply();
+        firstEditor.getContext().update();
+        ItemStack afterFirstSave = firstEditor.getContext().getItemStack().copy();
+        assertEquals("§7First lore", afterFirstSave.get(DataComponents.LORE).lines().getFirst().getString());
+
+        var secondEditor = createEditor(afterFirstSave);
+        var secondDisplay = displayCategory(secondEditor);
+        var existingLore = (TextEntryModel) secondDisplay.getEntries().get(secondDisplay.getEntryListStart());
+        String original = existingLore.getValue().getString();
+        String recolored = LegacyColorCodes.wrap(original, 2, original.length(), "red")
+                .replace("§r", "§7");
+        existingLore.setValue(Component.literal(recolored));
+        secondEditor.apply();
+        secondEditor.getContext().update();
+
+        assertSavedLore(secondEditor, "§7§cFirst lore§7");
+        var thirdEditor = createEditor(secondEditor.getContext().getItemStack().copy());
+        var reopenedLore = (TextEntryModel) displayCategory(thirdEditor).getEntries()
+                .get(displayCategory(thirdEditor).getEntryListStart());
+        assertEquals("§7§cFirst lore§7", reopenedLore.getValue().getString());
+    }
+
+    @Test
+    void recoloringExistingLoreThroughControllerIsCommittedOnDone() {
+        var stack = new ItemStack(Items.IRON_SWORD);
+        stack.set(DataComponents.LORE, new ItemLore(List.of(Component.literal("§7First lore"))));
+        var editor = createEditor(stack);
+        var display = displayCategory(editor);
+        var lore = (TextEntryModel) display.getEntries().get(display.getEntryListStart());
+        var view = new TextEntryView();
+        view.build();
+        var controller = new TextEntryController(lore, view);
+        controller.bind();
+        view.getTextField().setCursorPosition(2);
+        view.getTextField().setHighlightPosition(view.getTextField().getText().length());
+        editor.setActiveTextEditor(controller);
+
+        controller.addColorFormatting("red");
+        assertEquals("§7§cFirst lore§7",
+                editor.getContext().getItemStack().get(DataComponents.LORE).lines().getFirst().getString());
+        editor.apply();
+        editor.getContext().update();
+
+        assertSavedLore(editor, "§7§cFirst lore§7");
     }
 
     @Test

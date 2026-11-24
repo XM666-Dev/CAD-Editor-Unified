@@ -57,6 +57,7 @@ public class ItemDisplayCategoryModel extends ItemEditorCategoryModel {
         entry.setLegacyColorCodes(true);
         entry.setLegacyResetCode("\u00a77");
         entry.listIndexProperty().addListener(index -> entry.setLabel(ModTexts.lore(index + 1)));
+        entry.valueProperty().addListener(ignored -> syncLoreToStack());
         return entry;
     }
 
@@ -65,6 +66,15 @@ public class ItemDisplayCategoryModel extends ItemEditorCategoryModel {
         super.apply();
         setItemNameOverride(itemNameEntry.getValue());
         setCustomName(customNameEntry.getValue());
+        syncLoreToStack();
+        ItemStack stack = getStack();
+        Component customName = stack.get(DataComponents.CUSTOM_NAME);
+        if (customName != null && customName.getString().isEmpty()) {
+            stack.remove(DataComponents.CUSTOM_NAME);
+        }
+    }
+
+    private void syncLoreToStack() {
         ItemStack stack = getStack();
         List<Component> loreLines = getLoreEntries().stream()
                 .map(TextEntryModel::getValue)
@@ -77,10 +87,6 @@ public class ItemDisplayCategoryModel extends ItemEditorCategoryModel {
         } else if (stack.get(DataComponents.LORE) instanceof ItemLore existingLore
                 && !existingLore.lines().isEmpty()) {
             stack.remove(DataComponents.LORE);
-        }
-        Component customName = stack.get(DataComponents.CUSTOM_NAME);
-        if (customName != null && customName.getString().isEmpty()) {
-            stack.remove(DataComponents.CUSTOM_NAME);
         }
     }
 

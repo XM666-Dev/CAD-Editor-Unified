@@ -14,6 +14,9 @@ public abstract class StandardEditorModel extends CategoryEntryScreenModel<Edito
 
     @Override
     public void apply() {
+        if (getActiveTextEditor() != null) {
+            getActiveTextEditor().commitPendingEdit();
+        }
         java.util.List<EditorCategoryModel> snapshot = java.util.List.copyOf(getCategories());
         snapshot.forEach(EditorCategoryModel::apply);
     }

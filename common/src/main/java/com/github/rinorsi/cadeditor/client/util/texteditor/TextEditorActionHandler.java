@@ -1,6 +1,9 @@
 package com.github.rinorsi.cadeditor.client.util.texteditor;
 
 public interface TextEditorActionHandler {
+    default void commitPendingEdit() {
+    }
+
     void removeColorFormatting();
 
     void addColorFormatting(String color);

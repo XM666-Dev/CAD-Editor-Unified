@@ -45,15 +45,6 @@ public class ItemEditorModel extends StandardEditorModel {
     private static final String TOMBSTONE_PREFIX = "!";
     private static final String FOOD_COMPONENT_KEY = "minecraft:food";
 
-    private static final Set<String> DELETE_IF_ABSENT_KEYS = Set.of(
-        "minecraft:hide_tooltip",
-        "minecraft:hide_additional_tooltip",
-        "minecraft:tooltip_display",
-        "minecraft:enchantment_glint_override",
-        "minecraft:custom_name",
-        "minecraft:item_name"
-    );
-
     private static final int MIN_NUTRITION = 0;
     private static final int MAX_DURATION_TICKS = 20 * 60 * 60;
     private static final int MAX_AMPLIFIER = 255;
@@ -421,40 +412,28 @@ public class ItemEditorModel extends StandardEditorModel {
 
     private static CompoundTag mergeComponentsPreservingUnknown(
             CompoundTag oldRoot, CompoundTag newRoot, Set<String> keysNotToCopy) {
-    CompoundTag merged = newRoot.copy();
-
-    if (!merged.contains(KEY_COMPONENTS, Tag.TAG_COMPOUND)) {
+        CompoundTag merged = newRoot.copy();
         if (oldRoot != null && oldRoot.contains(KEY_COMPONENTS, Tag.TAG_COMPOUND)) {
-            merged.put(KEY_COMPONENTS, oldRoot.getCompound(KEY_COMPONENTS).copy());
+            CompoundTag newComps = merged.getCompound(KEY_COMPONENTS);
+            CompoundTag oldComps = oldRoot.getCompound(KEY_COMPONENTS);
+            for (String oldKey : oldComps.getAllKeys()) {
+                if (oldKey.startsWith(TOMBSTONE_PREFIX)) continue;
+                if (keysNotToCopy != null && keysNotToCopy.contains(oldKey)) continue;
+
+                // The stack is authoritative for registered components. An absent patch
+                // can mean deletion or a return to the item's default value.
+                ResourceLocation id = ResourceLocation.tryParse(oldKey);
+                if (id != null && BuiltInRegistries.DATA_COMPONENT_TYPE.containsKey(id)) continue;
+                if (newComps.contains(TOMBSTONE_PREFIX + oldKey) || newComps.contains(oldKey)) continue;
+
+                Tag oldValue = oldComps.get(oldKey);
+                if (oldValue != null) {
+                    ensureComponentsTag(merged).put(oldKey, oldValue.copy());
+                }
+            }
         }
         return merged;
     }
-
-    CompoundTag newComps = merged.getCompound(KEY_COMPONENTS);
-
-    if (oldRoot != null && oldRoot.contains(KEY_COMPONENTS, Tag.TAG_COMPOUND)) {
-        CompoundTag oldComps = oldRoot.getCompound(KEY_COMPONENTS);
-
-        for (String oldKey : oldComps.getAllKeys()) {
-            if (oldKey.startsWith(TOMBSTONE_PREFIX)) continue;
-            if (keysNotToCopy != null && keysNotToCopy.contains(oldKey)) continue;
-
-            boolean explicitlyRemoved = newComps.contains(TOMBSTONE_PREFIX + oldKey);
-            boolean explicitlySet     = newComps.contains(oldKey);
-            if (explicitlyRemoved || explicitlySet) continue;
-
-            Tag oldVal = oldComps.get(oldKey);
-            boolean isUnitLike = (oldVal instanceof CompoundTag c) && c.isEmpty();
-
-            boolean respectDeletion = isUnitLike || DELETE_IF_ABSENT_KEYS.contains(oldKey);
-            if (!respectDeletion) {
-                newComps.put(oldKey, oldVal.copy());
-            }
-        }
-    }
-
-    return merged;
-}
 
     protected HolderLookup.Provider getRegistryAccess() { return ClientUtil.registryAccess(); }
 

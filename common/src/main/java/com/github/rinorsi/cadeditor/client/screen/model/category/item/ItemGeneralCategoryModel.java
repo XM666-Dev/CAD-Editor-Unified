@@ -124,7 +124,7 @@ public class ItemGeneralCategoryModel extends ItemEditorCategoryModel {
         }
         int max = stack.getMaxDamage();
         if (max > 0) {
-            int clamped = Math.max(0, Math.min(stack.getDamageValue(), Math.max(0, max - 1)));
+            int clamped = Math.clamp(max - 1, 0, stack.getDamageValue());
             stack.setDamageValue(clamped);
         } else {
             stack.setDamageValue(0);
@@ -134,13 +134,13 @@ public class ItemGeneralCategoryModel extends ItemEditorCategoryModel {
 
     private void setCount(int value) {
         ItemStack stack = getParent().getContext().getItemStack();
-        int sanitized = Math.max(1, Math.min(999, value));
+        int sanitized = Math.clamp(value, 1, Item.ABSOLUTE_MAX_STACK_SIZE);
         int defaultMax = stack.getItem().getDefaultMaxStackSize();
         Integer override = stack.get(DataComponents.MAX_STACK_SIZE);
         int currentMax = stack.getMaxStackSize();
         if (sanitized > currentMax) {
             int newMax = Math.max(sanitized, defaultMax);
-            newMax = Math.min(newMax, 999);
+            newMax = Math.min(newMax, Item.ABSOLUTE_MAX_STACK_SIZE);
             stack.set(DataComponents.MAX_STACK_SIZE, newMax);
             currentMax = newMax;
         } else if (override != null && sanitized <= defaultMax) {
